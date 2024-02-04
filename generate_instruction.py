@@ -33,18 +33,18 @@ def encode_prompt(prompt_instructions):
         instruction = re.sub(r"\s+", " ", instruction).strip().rstrip(":")
         input = "<noinput>" if input.lower() == "" else input
         prompt += f"###\n"
-        prompt += f"{idx + 1}. Instruction: {instruction}\n"
-        prompt += f"{idx + 1}. Input:\n{input}\n"
-        prompt += f"{idx + 1}. Output:\n{output}\n"
+        prompt += f"{idx + 1}. Instrukció: {instruction}\n"
+        prompt += f"{idx + 1}. Bemenet:\n{input}\n"
+        prompt += f"{idx + 1}. Kimenet:\n{output}\n"
     prompt += f"###\n"
-    prompt += f"{idx + 2}. Instruction:"
+    prompt += f"{idx + 2}. Instrukció:"
     return prompt
 
 
 def post_process_gpt3_response(num_prompt_instructions, response):
     if response is None:
         return []
-    raw_instructions = f"{num_prompt_instructions+1}. Instruction:" + response["text"]
+    raw_instructions = f"{num_prompt_instructions+1}. Instrukció:" + response["text"]
     raw_instructions = re.split("###", raw_instructions)
     instructions = []
     for idx, inst in enumerate(raw_instructions):
@@ -52,7 +52,7 @@ def post_process_gpt3_response(num_prompt_instructions, response):
         if idx == len(raw_instructions) - 1 and response["finish_reason"] == "length":
             continue
         idx += num_prompt_instructions + 1
-        splitted_data = re.split(f"{idx}\.\s+(Instruction|Input|Output):", inst)
+        splitted_data = re.split(f"{idx}\.\s+(Instrukció|Bemenet|Kimenet):", inst)
         if len(splitted_data) != 7:
             continue
         else:
@@ -65,23 +65,17 @@ def post_process_gpt3_response(num_prompt_instructions, response):
             continue
         # filter based on keywords that are not suitable for language models.
         blacklist = [
-            "image",
-            "images",
-            "graph",
-            "graphs",
-            "picture",
-            "pictures",
-            "file",
-            "files",
-            "map",
-            "maps",
-            "draw",
-            "plot",
+            "kép",
+            "grafikon",
+            "ábra",
+            "fájl",
+            "térkép",
+            "rajz",
             "go to",
-            "video",
-            "audio",
-            "music",
-            "flowchart",
+            "videó",
+            "hang",
+            "zene",
+            "folyamatábra",
             "diagram",
         ]
         blacklist += []
@@ -97,7 +91,7 @@ def post_process_gpt3_response(num_prompt_instructions, response):
         if inst[0] in string.punctuation:
             continue
         # filter those starting with non-english character
-        if not inst[0].isascii():
+        if not inst[0].isascii() or inst[0] in 'áéíóöőúüű':
             continue
         instructions.append({"instruction": inst, "input": input, "output": output})
     return instructions
