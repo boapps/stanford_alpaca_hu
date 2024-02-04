@@ -1,14 +1,14 @@
-You are asked to come up with a set of 20 diverse task instructions. These task instructions will be given to a GPT model and we will evaluate the GPT model for completing the instructions.
+Az a feladatod, hogy kitalálj egy 20 különböző feladatból álló utasításcsomagot. Ezeket a feladatutasításokat egy GPT modellnek adjuk meg, és értékelni fogjuk a GPT modellt az utasítások teljesítésén.
 
-Here are the requirements:
-1. Try not to repeat the verb for each instruction to maximize diversity.
-2. The language used for the instruction also should be diverse. For example, you should combine questions with imperative instrucitons.
-3. The type of instructions should be diverse. The list should include diverse types of tasks like open-ended generation, classification, editing, etc.
-2. A GPT language model should be able to complete the instruction. For example, do not ask the assistant to create any visual or audio output. For another example, do not ask the assistant to wake you up at 5pm or set a reminder because it cannot perform any action.
-3. The instructions should be in English.
-4. The instructions should be 1 to 2 sentences long. Either an imperative sentence or a question is permitted.
-5. You should generate an appropriate input to the instruction. The input field should contain a specific example provided for the instruction. It should involve realistic data and should not contain simple placeholders. The input should provide substantial content to make the instruction challenging but should ideally not exceed 100 words.
-6. Not all instructions require input. For example, when a instruction asks about some general information, "what is the highest peak in the world", it is not necssary to provide a specific context. In this case, we simply put "<noinput>" in the input field.
-7. The output should be an appropriate response to the instruction and the input. Make sure the output is less than 100 words.
+Itt vannak a követelmények:
+1. Próbáld meg nem ugyanazt az igét használni minden utasításnál, hogy növeld a változatosságot.
+2. Az instrukciókhoz használt nyelvezetnek is változatosnak kell lennie. Például próbáld a kérdéseket kombinálni a felszólító utasításokkal.
+3. Az utasítások típusának is sokfélének kell lennie. A listának változatos feladattípusokat kell tartalmaznia, például nyílt végű generálást, osztályozást, szerkesztést stb.
+4. A GPT nyelvi modellnek képesnek kell lennie az utasítás teljesítésére. Például ne kérd az asszisztenstől, hogy hozzon létre vizuális vagy hangból álló kimenetet. Egy másik példa: ne kérd meg az asszisztenst, hogy ébresszen fel délután 5 órakor, vagy állítson be emlékeztetőt, mert nem tud semmilyen műveletet végrehajtani.
+5. Az instrukció legyen magyar nyelven.
+6. Az utasítások 1-2 mondat hosszúak legyenek. Egy felszólító mondat vagy egy kérdés is megengedett.
+7. Az utasításhoz egy megfelelő bemenetet is kell generálni, amennyiben szükséges. Ennek a bemeneti mezőnek tartalmaznia kell az utasításhoz megadott konkrét példát. Valós adatokat kell tartalmazzon, és nem lehet egy egyszerű placeholder. A bemenetnek érdemi tartalmat kell nyújtania ahhoz, hogy az utasítás kihívást jelentsen, de ideális esetben nem haladhatja meg a 100 szót.
+8. Nem minden utasításhoz van szükség bemenetre. Például, ha egy utasítás valamilyen általános információra kérdez rá, hogy "mi a világ legmagasabb csúcsa", nem szükséges konkrét kontextust megadni. Ebben az esetben egyszerűen írjuk be a "<noinput>" feliratot a beviteli mezőbe.
+9. A kimenetnek egy megfelelő válasznak kell lennie az utasításra és a bemenetre. Ügyelj arra, hogy a kimenet kevesebb mint 100 szóból álljon.
 
-List of 20 tasks:
+A 20 feladat listája:
