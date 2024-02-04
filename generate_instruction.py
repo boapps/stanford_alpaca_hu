@@ -20,8 +20,12 @@ import numpy as np
 import tqdm
 import textdistance
 import utils
+from nltk.stem import SnowballStemmer
 
 import fire
+
+
+stemmer = SnowballStemmer("hungarian")
 
 
 def encode_prompt(prompt_instructions):
@@ -71,7 +75,6 @@ def post_process_gpt3_response(num_prompt_instructions, response):
             "fájl",
             "térkép",
             "rajz",
-            "go to",
             "videó",
             "hang",
             "zene",
@@ -98,8 +101,7 @@ def post_process_gpt3_response(num_prompt_instructions, response):
 
 
 def find_word_in_string(w, s):
-    return re.compile(r"\b({0})\b".format(w), flags=re.IGNORECASE).search(s)
-
+    return stemmer.stem(w) == stemmer.stem(s)
 
 def generate_instruction_following_data(
     output_dir="./",
