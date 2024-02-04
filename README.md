@@ -3,7 +3,7 @@
 <img src="assets/logo.png" alt="Stanford-Alpaca" style="width: 50%; min-width: 300px; display: block; margin: auto;">
 </p>
 
-# Stanford Alpaca: An Instruction-following LLaMA Model
+# Stanford Alpaca HU: Code to generate a Hungarian version of the Stanford Alpaca dataset
 
 [![Code License](https://img.shields.io/badge/Code%20License-Apache_2.0-green.svg)](https://github.com/tatsu-lab/stanford_alpaca/blob/main/LICENSE)
 [![Data License](https://img.shields.io/badge/Data%20License-CC%20By%20NC%204.0-red.svg)](https://github.com/tatsu-lab/stanford_alpaca/blob/main/DATA_LICENSE)
