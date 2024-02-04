@@ -18,7 +18,7 @@ from multiprocessing import Pool
 
 import numpy as np
 import tqdm
-from rouge_score import rouge_scorer
+import textdistance
 import utils
 
 import fire
@@ -128,7 +128,6 @@ def generate_instruction_following_data(
         print(f"Loaded {len(machine_instruction_data)} machine-generated instructions")
 
     # similarities = {}
-    scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=False)
 
     # now let's generate new instructions!
     progress_bar = tqdm.tqdm(total=num_instructions_to_generate)
@@ -139,7 +138,6 @@ def generate_instruction_following_data(
     all_instructions = [d["instruction"] for d in seed_instruction_data] + [
         d["instruction"] for d in machine_instruction_data
     ]
-    all_instruction_tokens = [scorer._tokenizer.tokenize(inst) for inst in all_instructions]
 
     while len(machine_instruction_data) < num_instructions_to_generate:
         request_idx += 1
@@ -177,25 +175,18 @@ def generate_instruction_following_data(
         keep = 0
         for instruction_data_entry in instruction_data:
             # computing similarity with the pre-tokenzied instructions
-            new_instruction_tokens = scorer._tokenizer.tokenize(instruction_data_entry["instruction"])
-            with Pool(num_cpus) as p:
-                rouge_scores = p.map(
-                    partial(rouge_scorer._score_lcs, new_instruction_tokens),
-                    all_instruction_tokens,
-                )
-            rouge_scores = [score.fmeasure for score in rouge_scores]
+            similarities = [textdistance.levenshtein.normalized_similarity(inst, instruction_data_entry["instruction"]) for inst in all_instructions]
             most_similar_instructions = {
-                all_instructions[i]: rouge_scores[i] for i in np.argsort(rouge_scores)[-10:][::-1]
+                all_instructions[i]: similarities[i] for i in np.argsort(similarities)[-10:][::-1]
             }
-            if max(rouge_scores) > 0.7:
+            if max(similarities) > 0.7:
                 continue
             else:
                 keep += 1
             instruction_data_entry["most_similar_instructions"] = most_similar_instructions
-            instruction_data_entry["avg_similarity_score"] = float(np.mean(rouge_scores))
+            instruction_data_entry["avg_similarity_score"] = float(np.mean(similarities))
             machine_instruction_data.append(instruction_data_entry)
             all_instructions.append(instruction_data_entry["instruction"])
-            all_instruction_tokens.append(new_instruction_tokens)
             progress_bar.update(1)
         process_duration = time.time() - process_start
         print(f"Request {request_idx} took {request_duration:.2f}s, processing took {process_duration:.2f}s")
