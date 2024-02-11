@@ -24,13 +24,9 @@ import utils
 from nltk.stem import SnowballStemmer
 
 import fire
-from transformers import BertForSequenceClassification, BertTokenizer
 import torch
 import torch.nn.functional as F
 
-
-model = BertForSequenceClassification.from_pretrained('./backups/merged_model').to('cuda')
-tokenizer = BertTokenizer.from_pretrained('SZTAKI-HLT/hubert-base-cc')
 
 stemmer = SnowballStemmer("hungarian")
 
