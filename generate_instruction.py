@@ -21,14 +21,10 @@ import openai
 import tqdm
 import textdistance
 import utils
-from nltk.stem import SnowballStemmer
 
 import fire
 import torch
 import torch.nn.functional as F
-
-
-stemmer = SnowballStemmer("hungarian")
 
 
 def encode_prompt(prompt_instructions):
