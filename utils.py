@@ -1,8 +1,10 @@
 import dataclasses
+from email import message
 import logging
 import math
 import os
 import io
+from pyexpat.errors import messages
 import sys
 import time
 import json
@@ -10,10 +12,8 @@ from typing import Optional, Sequence, Union
 
 import openai
 import tqdm
-from openai import openai_object
 import copy
-
-StrOrOpenAIObject = Union[str, openai_object.OpenAIObject]
+from openai import OpenAI
 
 openai_org = os.getenv("OPENAI_ORG")
 if openai_org is not None:
@@ -35,18 +35,18 @@ class OpenAIDecodingArguments(object):
     logprobs: Optional[int] = None
     echo: bool = False
 
+client = OpenAI()
 
 def openai_completion(
     prompts: Union[str, Sequence[str], Sequence[dict[str, str]], dict[str, str]],
-    decoding_args: OpenAIDecodingArguments,
-    model_name="text-davinci-003",
+    model_name="gpt-3.5-turbo",
     sleep_time=2,
     batch_size=1,
     max_instances=sys.maxsize,
     max_batches=sys.maxsize,
     return_text=False,
     **decoding_kwargs,
-) -> Union[Union[StrOrOpenAIObject], Sequence[StrOrOpenAIObject], Sequence[Sequence[StrOrOpenAIObject]],]:
+):
     """Decode with OpenAI API.
 
     Args:
@@ -89,41 +89,52 @@ def openai_completion(
     ]
 
     completions = []
-    for batch_id, prompt_batch in tqdm.tqdm(
-        enumerate(prompt_batches),
-        desc="prompt_batches",
-        total=len(prompt_batches),
-    ):
-        batch_decoding_args = copy.deepcopy(decoding_args)  # cloning the decoding_args
-
+    for batch_id, prompt_batch in enumerate(prompt_batches):
         while True:
             try:
                 shared_kwargs = dict(
                     model=model_name,
-                    **batch_decoding_args.__dict__,
                     **decoding_kwargs,
                 )
-                completion_batch = openai.Completion.create(prompt=prompt_batch, **shared_kwargs)
-                choices = completion_batch.choices
+                messages=[
+                    {
+                    "role": "system",
+                    "content": "A feladatod, hogy kitalálj egy adott számú különböző feladatból álló utasításcsomagot! Ezeket a feladatutasításokat egy GPT modellnek adjuk meg, és értékelni fogjuk a GPT asszisztenst az utasítások teljesítésén. Az elválasztáshoz használj '###'-t.\n\nItt vannak a követelmények:\n1. Próbáld meg nem ugyanazt az igét használni minden utasításnál, hogy növeld a változatosságot!\n2. Az utasításokhoz használt nyelvezetnek is változatosnak kell lennie! Például használj a felszólító mód mellett kérdéseket is!\n3. Az utasítások típusának is sokfélének kell lennie. A listának változatos feladattípusokat kell tartalmaznia, például nyílt végű generálást, osztályozást, szerkesztést stb.\n4. A GPT nyelvi modellnek képesnek kell lennie az utasítás teljesítésére. Például ne kérd az asszisztenstől, hogy hozzon létre vizuális vagy hangból álló kimenetet! Egy másik példa: ne kérd meg az asszisztenst, hogy ébresszen fel délután 5 órakor, vagy állítson be emlékeztetőt, mert képes semmilyen művelet végrehajtására.\n5. Az utasítás legyen magyar nyelven!\n6. Az utasítások 1-2 mondat hosszúak legyenek! Felszólító mód és kérdés is megengedett.\n7. Bizonyos utasításhoz bemenetnek is tartoznia kell. Ennek a bemenet mezőnek tartalmaznia kell az utasításhoz megadott konkrét példát. A bemenetnek érdemi tartalmat kell nyújtania ahhoz, hogy az utasítás kihívást jelentsen, de ideális esetben nem haladhatja meg a 100 szót.\n8. Nem minden utasításhoz van szükség bemenetre. Például, ha egy utasítás valamilyen általános információra kérdez rá, hogy \"mennyi 15+93?\", nem szükséges konkrét bemenetet megadni. Ebben az esetben egyszerűen írjuk be az \"<üres>\" feliratot a bemenet mezőbe, de a bemenet mezőnek ekkor is léteznie kell!\n9. Válasznak meg kell válaszolnia az utasítást a bemenet tekintetében. Ügyelj arra, hogy a kimenet ne nagyon haladja meg a 100 szót álljon!\n10. Az utasítások és válaszok esetében is ügyelj a nyelvtanilag helyes és magyaros szövegalkotásra, valamint a megfelelő ragozásra!"
+                    },
+                    {
+                    "role": "user",
+                    "content": "Adj meg 3 darab feladatot!"
+                    },
+                    {
+                    "role": "assistant",
+                    "content": prompt_batch[0]
+                    },
+                    {
+                    "role": "user",
+                    "content": "Adj meg 20 darab feladatot ugyanilyen formátumban!"
+                    }
+                ]
+                response = client.chat.completions.create(
+                model="gpt-3.5-turbo-0125",
+                messages=messages,
+                temperature=1,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0,
+                stop=["21. Instrukció", "\\n21."]
+                )
 
-                for choice in choices:
-                    choice["total_tokens"] = completion_batch.usage.total_tokens
+                choices = response.choices
+
                 completions.extend(choices)
                 break
-            except openai.error.OpenAIError as e:
+            except Exception as e:
                 logging.warning(f"OpenAIError: {e}.")
-                if "Please reduce your prompt" in str(e):
-                    batch_decoding_args.max_tokens = int(batch_decoding_args.max_tokens * 0.8)
-                    logging.warning(f"Reducing target length to {batch_decoding_args.max_tokens}, Retrying...")
-                else:
-                    logging.warning("Hit request rate limit; retrying...")
-                    time.sleep(sleep_time)  # Annoying rate limit on requests.
+                logging.warning("Hit request rate limit; retrying...")
+                time.sleep(sleep_time)  # Annoying rate limit on requests.
 
     if return_text:
         completions = [completion.text for completion in completions]
-    if decoding_args.n > 1:
-        # make completions a nested list, where each entry is a consecutive decoding_args.n of original entries.
-        completions = [completions[i : i + decoding_args.n] for i in range(0, len(completions), decoding_args.n)]
     if is_single_prompt:
         # Return non-tuple if only 1 input and 1 generation.
         (completions,) = completions

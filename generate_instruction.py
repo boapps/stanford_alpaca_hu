@@ -17,84 +17,68 @@ from functools import partial
 from multiprocessing import Pool
 
 import numpy as np
+import openai
 import tqdm
 import textdistance
 import utils
 from nltk.stem import SnowballStemmer
 
 import fire
+from transformers import BertForSequenceClassification, BertTokenizer
+import torch
+import torch.nn.functional as F
 
+
+model = BertForSequenceClassification.from_pretrained('./backups/merged_model').to('cuda')
+tokenizer = BertTokenizer.from_pretrained('SZTAKI-HLT/hubert-base-cc')
 
 stemmer = SnowballStemmer("hungarian")
 
 
 def encode_prompt(prompt_instructions):
     """Encode multiple prompt instructions into a single string."""
-    prompt = open("./prompt.txt").read() + "\n"
+    prompt = ''
 
     for idx, task_dict in enumerate(prompt_instructions):
         (instruction, input, output) = task_dict["instruction"], task_dict["input"], task_dict["output"]
         instruction = re.sub(r"\s+", " ", instruction).strip().rstrip(":")
-        input = "<noinput>" if input.lower() == "" else input
-        prompt += f"###\n"
-        prompt += f"{idx + 1}. Instrukció: {instruction}\n"
+        input = "<üres>" if input.lower() == "" else input
+        if idx != 0:
+            prompt += f"###\n"
+        prompt += f"{idx + 1}. Utasítás: {instruction}\n"
         prompt += f"{idx + 1}. Bemenet:\n{input}\n"
-        prompt += f"{idx + 1}. Kimenet:\n{output}\n"
-    prompt += f"###\n"
-    prompt += f"{idx + 2}. Instrukció:"
+        prompt += f"{idx + 1}. Válasz:\n{output}\n"
     return prompt
 
 
 def post_process_gpt3_response(num_prompt_instructions, response):
     if response is None:
         return []
-    raw_instructions = f"{num_prompt_instructions+1}. Instrukció:" + response["text"]
+    print(response.message.content)
+    raw_instructions = response.message.content
     raw_instructions = re.split("###", raw_instructions)
     instructions = []
     for idx, inst in enumerate(raw_instructions):
         # if the decoding stops due to length, the last example is likely truncated so we discard it
-        if idx == len(raw_instructions) - 1 and response["finish_reason"] == "length":
+        if idx == len(raw_instructions) - 1 and response.finish_reason == "length":
             continue
-        idx += num_prompt_instructions + 1
-        splitted_data = re.split(f"{idx}\.\s+(Instrukció|Bemenet|Kimenet):", inst)
+        splitted_data = re.split(f"\d+\.\s+(Utasítás|Bemenet|Válasz):", inst)
+        print(splitted_data)
         if len(splitted_data) != 7:
             continue
         else:
             inst = splitted_data[2].strip()
             input = splitted_data[4].strip()
-            input = "" if input.lower() == "<noinput>" else input
+            input = "" if input.lower() == "<üres>" else input
             output = splitted_data[6].strip()
         # filter out too short or too long instructions
         if len(inst.split()) <= 3 or len(inst.split()) > 150:
             continue
         # filter based on keywords that are not suitable for language models.
-        blacklist = [
-            "kép",
-            "grafikon",
-            "ábra",
-            "fájl",
-            "térkép",
-            "rajz",
-            "videó",
-            "hang",
-            "zene",
-            "folyamatábra",
-            "diagram",
-        ]
-        blacklist += []
-        if any(find_word_in_string(word, inst) for word in blacklist):
-            continue
-        # We found that the model tends to add "write a program" to some existing instructions, which lead to a lot of such instructions.
-        # And it's a bit comfusing whether the model need to write a program or directly output the result.
-        # Here we filter them out.
-        # Note this is not a comprehensive filtering for all programming instructions.
-        if inst.startswith("Write a program"):
+        if 'Kontextus: ' in inst or 'kedvenc' in inst or 'Kontextus: ' in input:
             continue
         # filter those starting with punctuation
         if inst[0] in string.punctuation:
-            continue
-        # filter those starting with non-english character
-        if not inst[0].isascii() or inst[0] in 'áéíóöőúüű':
             continue
         instructions.append({"instruction": inst, "input": input, "output": output})
     return instructions
@@ -106,17 +90,17 @@ def find_word_in_string(w, s):
 def generate_instruction_following_data(
     output_dir="./",
     seed_tasks_path="./seed_tasks.jsonl",
-    num_instructions_to_generate=100,
-    model_name="text-davinci-003",
+    num_instructions_to_generate=15000,
+    model_name="gpt-3.5-turbo-0125",
     num_prompt_instructions=3,
-    request_batch_size=5,
+    request_batch_size=1,
     temperature=1.0,
     top_p=1.0,
-    num_cpus=16,
+    num_cpus=1,
 ):
     seed_tasks = [json.loads(l) for l in open(seed_tasks_path, "r")]
     seed_instruction_data = [
-        {"instruction": t["instruction"], "input": t["instances"][0]["input"], "output": t["instances"][0]["output"]}
+        {"instruction": t["instruction"], "input": t["input"], "output": t["output"]}
         for t in seed_tasks
     ]
     print(f"Loaded {len(seed_instruction_data)} human-written seed instructions")
@@ -150,19 +134,11 @@ def generate_instruction_following_data(
             prompt_instructions = random.sample(seed_instruction_data, num_prompt_instructions)
             prompt = encode_prompt(prompt_instructions)
             batch_inputs.append(prompt)
-        decoding_args = utils.OpenAIDecodingArguments(
-            temperature=temperature,
-            n=1,
-            max_tokens=3072,  # hard-code to maximize the length. the requests will be automatically adjusted
-            top_p=top_p,
-            stop=["\n20", "20.", "20."],
-        )
         request_start = time.time()
         results = utils.openai_completion(
             prompts=batch_inputs,
             model_name=model_name,
             batch_size=request_batch_size,
-            decoding_args=decoding_args,
             logit_bias={"50256": -100},  # prevent the <|endoftext|> token from being generated
         )
         request_duration = time.time() - request_start
