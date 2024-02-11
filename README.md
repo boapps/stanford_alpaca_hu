@@ -5,6 +5,8 @@
 
 # Stanford Alpaca HU: Code to generate a Hungarian version of the Stanford Alpaca dataset
 
+Adathalmaz itt: [alpaca-hu](https://huggingface.co/datasets/boapps/alpaca-hu)
+
 Változások az eredeti Stanford Alpaca-hoz képest:
 - seed taskok egy része le lett fordítva, kissé át lett írva, hogy magyar nyelvhez jobban igazodjon + lett pár új seed task is
 - modell lecserélve  `gpt-3.5-turbo-0125`-re, emiatt a few-shot promptolást is át kellett alakítani instruction alapúra
@@ -12,6 +14,8 @@ Változások az eredeti Stanford Alpaca-hoz képest:
 - egyszerűség kedvéért a batchelés/multiprocessing ki lett szedve
 
 A módosítások közben legkisebb mértékben sem figyeltem fenntartható kód írására (pl. a prompt hardcodeolva lett), remélhetőleg többet nem kell módosítani.
+
+Innen következik az eredeti readme:
 
 [![Code License](https://img.shields.io/badge/Code%20License-Apache_2.0-green.svg)](https://github.com/tatsu-lab/stanford_alpaca/blob/main/LICENSE)
 [![Data License](https://img.shields.io/badge/Data%20License-CC%20By%20NC%204.0-red.svg)](https://github.com/tatsu-lab/stanford_alpaca/blob/main/DATA_LICENSE)
